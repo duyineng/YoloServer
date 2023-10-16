@@ -37,6 +37,7 @@ public:
 	vector<DevInfo> devInfos;
 	int m_allDevNums;
 	int* m_stat;
+	vector<NET_DVR_PREVIEWINFO>		struPlayInfos;
 private:
-    NET_DVR_JPEGPARA jpegPara={0xff,1}; //C+11新特性，类内就地初始化,效率最高
+    NET_DVR_JPEGPARA jpegPara={0xff,2}; //C+11新特性，类内就地初始化,效率最高
 };

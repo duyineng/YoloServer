@@ -13,7 +13,7 @@
 #include"preprocess.h"
 #include"yolo.hh"
 #include<pthread.h>
-#define DEVNUMS 1
+#define DEVNUMS 13 
 
 extern pthread_mutex_t mutex1;
 unsigned int detectRecNums=0;
@@ -150,7 +150,6 @@ void YoloNas::detection()
 
 		buffer_idx+=size_image_dst;
 	}
-/*
 	
 	//等待8个子线程都截图完成
 	for(int i=0;i<DEVNUMS;i++)    
@@ -161,7 +160,6 @@ void YoloNas::detection()
 		}   
 	} 
 
-*/
 	
 /*
 	//等待8个子线程都截图完成
@@ -240,7 +238,7 @@ void YoloNas::detection()
 			
 			tmp_detectInfos.push_back(tmp_detecInfo);
 		}
-		if(a==12)
+		if(a==2)
 		{
 			cv::imshow("yolo",imgDevIDs[a].img);
 			cv::waitKey(5);

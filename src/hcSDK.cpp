@@ -69,8 +69,21 @@ hcSDK::hcSDK(std::string filename)
         tmp.devID=devInfo.devID;  //设备号
 
         midDevIDs.push_back(tmp);
+
+		// 设置实时预览参数
+		NET_DVR_PREVIEWINFO struPlayInfo={0};
+		struPlayInfo.hPlayWnd = NULL; // 预览窗口为空，解码后数据不显示
+		struPlayInfo.lChannel = stoi(devInfo.channel); // 预览通道号
+		struPlayInfo.dwStreamType = 1; // 主码流
+		struPlayInfo.dwLinkMode = 0; // TCP方式
+		struPlayInfo.bBlocked = 1; // 阻塞取流方式
+		
+		struPlayInfos.push_back(struPlayInfo);		
+			
+
     }
-}
+	
+	}
 
 hcSDK::~hcSDK()
 {
