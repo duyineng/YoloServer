@@ -34,10 +34,18 @@ public:
 	void loginDev();	
 	bool screenshot(std::string devID,LONG loginRet,int channel,char buf[],int size,unsigned int& sizeRet);
 public:
-	vector<DevInfo> devInfos;
 	int m_allDevNums;
 	int* m_stat;
-	vector<NET_DVR_PREVIEWINFO>		struPlayInfos;
+	vector<DevInfo> devInfos;	//设备信息数组
+	vector<NET_DVR_PREVIEWINFO>	previewInfos;	//预览信息数组
 private:
     NET_DVR_JPEGPARA jpegPara={0xff,2}; //C+11新特性，类内就地初始化,效率最高
 };
+
+struct HC
+{
+    hcSDK* m_hcsdk;
+    int m_i;
+    LONG nPort=-1;
+};
+

@@ -20,12 +20,13 @@ aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR}/src SRC_LIST)
 #file(GLOB SRC_LIST1 ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cu)
 
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/hc_lib)	
+link_directories(/home/user/dyn/YoloServer/hc_lib)	
 link_directories(/usr/local/lib)	
 link_directories(/usr/lib)	
 
 cuda_add_executable(${PROJECT_NAME} main.cpp ${SRC_LIST} ) 
 
-target_link_libraries(${PROJECT_NAME} pthread  hcnetsdk json mxml ${NVINFER} ${NVINFER_PLUGIN} ${CUDA_LIBRARIES} ${OpenCV_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} pthread PlayCtrl hcnetsdk json mxml ${NVINFER} ${NVINFER_PLUGIN} ${CUDA_LIBRARIES} ${OpenCV_LIBRARIES})
 
 
 
