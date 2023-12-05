@@ -1,16 +1,8 @@
 #include"main.h"
-#include <opencv2/highgui.hpp>
-#include"PlayM4.h"
 
-#define DEVNUMS 14
+#define DEVNUMS 18
+
 using namespace std;
-
-struct HC
-{
-    hcSDK* m_hcsdk;
-    int m_i;
-	LONG nPort;
-};
 
 extern unsigned int detectRecNums;	//在yolo.cc中定义	
 extern vector<MidDevID> midDevIDs;	//在hcSDK.cpp中定义
@@ -24,6 +16,8 @@ pthread_cond_t cond2=PTHREAD_COND_INITIALIZER;
 vector<ImgDevID> imgDevIDs;
 
 DetectInfo detectInfos[60*20];
+
+map<LONG,int> portToIndex;
 
 int thread_status[DEVNUMS]={0};
 
@@ -152,109 +146,96 @@ void* reconnect(void* arg)
 	return NULL;
 }
 
-void CALLBACK DecCBFun(int nPort, char * pBuf, int nSize, FRAME_INFO * pFrameInfo, void* nReserved1, int nReserved2)
+//解码回调函数
+//pBuf为解码后的一帧视频流数据的指针
+//nSize为解码后的一帧视频流数据的大小
+//pFrameInfo为图像和声音结构体指针
+//nReserved1和nReserved2为保留参数
+void CALLBACK DecCBFun(int nPort, char* pBuf, int nSize, FRAME_INFO* pFrameInfo, void* nReserved1, int nReserved2)
 {
-    long lFrameType = pFrameInfo->nType;
-
-    if(lFrameType == T_YV12)
+    if(pFrameInfo->nType== T_YV12)	//视频流解码后的图像格式为YV12
     {
+		//创建YV12格式的cv::Mat对象
+		cv::Mat yv12Img(pFrameInfo->nHeight*3/2, pFrameInfo->nWidth, CV_8UC1, pBuf);
+
+		//创建BGR格式的cv::Mat对象，用于存储格式转换后的图像
+		cv::Mat bgrImg(pFrameInfo->nHeight, pFrameInfo->nWidth, CV_8UC3);
+
+		//将YV12格式的图像转换为BGR格式的图像
+		cv::cvtColor(yv12Img, bgrImg, cv::COLOR_YUV2BGR_YV12);
+
+		//显示转换后的图像
 /*
-        cv::Mat pImg(pFrameInfo->nHeight, pFrameInfo->nWidth, CV_8UC3, pBuf);
-        cv::imshow("Video", pImg);
-        cv::waitKey(10);
-*/
-	// 创建一个YV12格式的cv::Mat对象
-    cv::Mat yv12Img(pFrameInfo->nHeight * 3 / 2, pFrameInfo->nWidth, CV_8UC1, pBuf);
+		if(portToIndex[nPort]==17)
+		{
 
-    // 创建一个BGR格式的cv::Mat对象，用于存储转换后的图像
-    cv::Mat bgrImg(pFrameInfo->nHeight, pFrameInfo->nWidth, CV_8UC3);
+		cv::imshow("Video", bgrImg);
+		cv::waitKey(10);
 
-    // 将YV12格式的图像转换为BGR格式
-    cv::cvtColor(yv12Img, bgrImg, cv::COLOR_YUV2BGR_YV12);
-
-    // 显示转换后的图像
-/*
-	if(nPort==0)
-{
-
-std::cout << "Thread ID: " << nPort << std::endl;
-    cv::imshow("Video", bgrImg);
-    cv::waitKey(10);
-}
+		}
 */
 
+		//放入数组中
+		imgDevIDs[portToIndex[nPort]].img=bgrImg;
 
     }
 }
 
-void CALLBACK fRealDataCallBack_V30(LONG lRealHandle,DWORD dwDataType,BYTE* pBuffer,DWORD dwBufSize,void* dwUser)
-
+//函数参数为系统自动传入
+void CALLBACK g_RealDataCallBack_V30(LONG lRealHandle,DWORD dwDataType,BYTE* pBuffer,DWORD dwBufSize,void* dwUser)
 {
-	HC hc=*(HC*)dwUser;
+	HC* hc=(HC*)dwUser;
 
-    if(dwDataType == NET_DVR_SYSHEAD) //如果是视频流数据
+    if(dwDataType == NET_DVR_SYSHEAD) //视频流的系统头
     {
-        if (!PlayM4_GetPort(&( ((HC*)dwUser)->nPort))) //获取播放库未使用的通道号
+        if (!PlayM4_GetPort(&hc->nPort)) //获取播放库未使用的通道号
         {
             return;
         }
-		cout<<"nPort="<<((HC*)dwUser)->nPort<<endl;
-		cout<<"errno="<<PlayM4_GetLastError<<endl;
-        if(dwBufSize > 0)
+		portToIndex.insert(pair<LONG,int>(hc->nPort,hc->m_i));
+		cout<<"nPort="<<hc->nPort<<endl;
+
+        if(dwBufSize > 0)	//实时流数据大小，大于0
         {
-            if (!PlayM4_SetStreamOpenMode(((HC*)dwUser)->nPort, STREAME_REALTIME))  //设置实时流播放模式
+            if (!PlayM4_SetStreamOpenMode(hc->nPort, STREAME_REALTIME))  //设置实时流播放模式
             {
                 return;
             }
-            if (!PlayM4_OpenStream(((HC*)dwUser)->nPort, pBuffer, dwBufSize, 1024 * 1024)) //打开流接口
+
+            if (!PlayM4_OpenStream(hc->nPort, pBuffer, dwBufSize, 1024 * 1024)) //打开流接口
             {
                 return;
             }
-            //设置解码回调函数 只解码不显示
-            if (!PlayM4_SetDecCallBack(((HC*)dwUser)->nPort, DecCBFun))
-            {
-			cout<<"进入dwDataType == NET_DVR_STREAMDATA"<<endl;
-                return;
-            }
-            //打开视频解码
-            if (!PlayM4_Play(((HC*)dwUser)->nPort, NULL))
+
+            if (!PlayM4_SetDecCallBack(hc->nPort, DecCBFun))		//设置解码回调函数 只解码不显示
             {
                 return;
             }
-            //打开音频解码,使用PlayM4函数
-            if (!PlayM4_PlaySound(((HC*)dwUser)->nPort))
+
+            if (!PlayM4_Play(hc->nPort, NULL))		//打开视频解码
             {
                 return;
             }
         }
     }
-    else if(dwDataType == NET_DVR_STREAMDATA)   //视频流数据
+    else if(dwDataType == NET_DVR_STREAMDATA)   //视频流的数据
     {
-        if(dwBufSize > 0)
+        if(dwBufSize>0 && hc->nPort!=-1)
         {
-            PlayM4_InputData(((HC*)dwUser)->nPort, pBuffer, dwBufSize);
+            PlayM4_InputData(hc->nPort, pBuffer, dwBufSize);
         }
     }
-	
 }
 
 void* screenshot(void* arg)
 {
-	
 	HC hc=*(HC*)arg;
-	LONG lRealPlayHandle;
-	lRealPlayHandle=NET_DVR_RealPlay_V40(hc.m_hcsdk->devInfos[hc.m_i].loginRet,
-										 &hc.m_hcsdk->struPlayInfos[hc.m_i],
-										 fRealDataCallBack_V30,
+	LONG lRealPlayHandle=NET_DVR_RealPlay_V40(hc.m_hcsdk->devInfos[hc.m_i].loginRet,
+										 &hc.m_hcsdk->previewInfos[hc.m_i],
+										 g_RealDataCallBack_V30,
 										 arg);		
 	if(lRealPlayHandle<0)
-		std::cout<<"RealPlay_V40 err"<<std::endl;
-	
-
-
-		
-
-
+		std::cout<<"RealPlay_V40 err:"<<NET_DVR_GetLastError()<<std::endl;
 /*
 			//把ImgInfo结构体数组放进模型中
 			pthread_mutex_lock(&ImgLocks[hc.m_i]);
@@ -285,41 +266,36 @@ void* screenshot(void* arg)
 		}
 
 */
-
-
 	return NULL;
 }
 
 int main()
 {
-
-	//初始化40把截图锁
+	//初始化DEVNUMS把截图锁
 	for(int i=0;i<DEVNUMS;i++)
 	{
 		int ret=pthread_mutex_init(&ImgLocks[i],NULL);
 		if(ret!=0)	//返回非0，失败
-			sys_err("pthread_mutex_init ImgLocks err");
+			sys_err("pthread_mutex_init() ImgLocks err");
 	}
 
-	cout<<"初始化海康SDK前"<<endl;
-
+	cout<<"开始初始化海康SDK环境"<<endl;
 	hcSDK hcsdk("devInfo.json");	//初始化devInfos数组容器，初始化midDevIDs数组容器
 
-	cout<<"初始化海康SDK成功"<<endl;
 	hcsdk.loginDev();	//全部设备登录一遍，如果一台设备都没登录上，会一直重复登录
 
+	cout<<"11"<<endl;
 	const int allDevNums=hcsdk.m_allDevNums;
 
 	imgDevIDs.resize(allDevNums);	//里面的所有元素都会被初始化，Mat为空矩阵，string为空字符串
 
-	cout<<"111"<<endl;
 	//创建线程，登录失败的设备，定期重连
 	pthread_t tid1;
 	int ret=pthread_create(&tid1,NULL,reconnect,&hcsdk);
 	if(ret==-1)
 		sys_err("pthread_create() reconnect err");
 
-	//创建40个截图子线程	
+	//创建DEVNUMS个截图子线程	
 	HC hcs[DEVNUMS];
 	for(int i=0;i<DEVNUMS;i++)
 	{
@@ -330,7 +306,6 @@ int main()
 	for(int i=0;i<DEVNUMS;i++)
 	{
 		int ret=pthread_create(&tid[i],NULL,screenshot,&hcs[i]);
-	//	int ret=pthread_create(&tid[i],NULL,screenshot,&nPorts[i]);
 		if(ret==-1)
 			sys_err("pthread_create() screenshot err");
 	}
@@ -342,19 +317,19 @@ int main()
 	if(ret==-1)
 		sys_err("pthread_create() handler err");
 
-	//YoloNas model("../yolonas.engine",allDevNums,"imgParam.json");	//创建模型对象，初始化并加载引擎
+	YoloNas model("../yolonas.engine",allDevNums,"imgParam.json");	//创建模型对象，初始化并加载引擎
 
-	//sleep(5);	
+	sleep(3);	
 
 	//首次推理需要确保每个设备都截取到图片，不然会出错
 	while(1)
 	{
 		usleep(50000);
-/*
+
 		cout<<"推理前"<<endl;
 		model.detection();
 		cout<<"推理后"<<endl;
-*/
+
 	}
 
 
