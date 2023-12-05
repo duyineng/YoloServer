@@ -1,6 +1,6 @@
 #include"main.h"
 
-#define DEVNUMS 2
+#define DEVNUMS 3
 
 extern unsigned int detectRecNums;	//在yolo.cc中定义	
 extern vector<MidDevID> midDevIDs;	//在hcSDK.cpp中定义
@@ -19,13 +19,6 @@ DetectInfo detectInfos[60*20];
 map<LONG,int> portToIndex;
 
 int thread_status[DEVNUMS]={0};
-
-int sys_err(const char* str)
-{
-	perror(str);
-
-	exit(1);
-}
 
 void* handler(void* arg)	//服务器处理线程
 {
@@ -104,7 +97,6 @@ void* handler(void* arg)	//服务器处理线程
 
 void* reconnect(void* arg)
 {
-/*
 	hcSDK* hcsdk=static_cast<hcSDK*>(arg);
 
     while(1)
@@ -141,9 +133,7 @@ void* reconnect(void* arg)
             }
         }
     }	
-*/
 	return NULL;
-
 }
 
 //解码回调函数
@@ -177,7 +167,18 @@ void CALLBACK DecCBFun(int nPort, char* pBuf, int nSize, FRAME_INFO* pFrameInfo,
 
 		//放入数组中
 		pthread_mutex_lock(&imgLocks[portToIndex[nPort]]);
-		std::cout<<"111"<<std::endl;
+		if(portToIndex[nPort]==0)
+		{
+			std::cout<<"111"<<std::endl;
+		}
+		if(portToIndex[nPort]==1)
+		{
+			std::cout<<"222"<<std::endl;
+		}
+		if(portToIndex[nPort]==2)
+		{
+			std::cout<<"333"<<std::endl;
+		}
 		imgDevIDs[portToIndex[nPort]].img=bgrImg;
 		pthread_mutex_unlock(&imgLocks[portToIndex[nPort]]);
     }
@@ -278,7 +279,9 @@ int main()
 	{
 		int ret = pthread_mutex_init(&imgLocks[i], NULL);
 		if(ret!=0)	//返回非0，失败
+		{
 			sys_err("pthread_mutex_init() imgLocks[i] err");
+		}
 	}
 
 	hcSDK hcsdk("devInfo.json");	//初始化devInfos数组容器，初始化midDevIDs数组容器

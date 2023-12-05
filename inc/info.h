@@ -27,6 +27,12 @@ struct ImgDevID
 {
 	cv::Mat img;
 	string devID;
+
+	ImgDevID()
+	{
+		cv::Mat img=cv::Mat::zeros(cv::Size(1080,720),CV_8UC3);
+		std::cout <<"img:"<<img.rows<<"img:"<<img.cols << std::endl;
+	}
 };
 
 struct DetectInfo

@@ -19,7 +19,6 @@
 #include<stdlib.h>
 #include<arpa/inet.h>
 #include<mxml.h>
-//#include<jpeglib.h>
 
 #include"base64.h"
 #include"HCNetSDK.h"
@@ -28,3 +27,10 @@
 #include"hcSDK.h"
 #include"UdpComm.h"
 #include"PlayM4.h"
+
+int sys_err(const char* str)
+{
+    perror(str);
+
+    exit(1);
+}
