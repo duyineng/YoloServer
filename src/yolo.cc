@@ -13,13 +13,14 @@
 #include"preprocess.h"
 #include"yolo.hh"
 #include<pthread.h>
-#define DEVNUMS 18
+
+#define DEVNUMS 2
 
 extern pthread_mutex_t mutex1;
 unsigned int detectRecNums=0;
 extern DetectInfo detectInfos[60*20];
 extern vector<ImgDevID> imgDevIDs;
-extern pthread_mutex_t ImgLocks[DEVNUMS];
+extern pthread_mutex_t imgLocks[DEVNUMS];
 
 extern pthread_mutex_t mutex2;
 extern pthread_cond_t cond2;
@@ -136,9 +137,10 @@ void YoloNas::detection()
 	//图像进入GPU缓存   
 	for (int i=0;i<MAX_BATCH_SIZE;i++)
 	{    
-		pthread_mutex_lock(&ImgLocks[i]);
+		pthread_mutex_lock(&imgLocks[i]);
 		memcpy(img_host,imgDevIDs[i].img.data,size_image);	//原始图像数据进入主机内存
-		pthread_mutex_unlock(&ImgLocks[i]);
+	cout<<"aa"<<endl;
+		pthread_mutex_unlock(&imgLocks[i]);
 
 		//原始图像数据进入设备内存
 		cudaMemcpyAsync(img_device,img_host,size_image,cudaMemcpyHostToDevice,stream_);		

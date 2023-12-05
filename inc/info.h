@@ -54,10 +54,3 @@ struct box
     float w;
     float h;
 };
-/*
-struct HC
-{
-    hcSDK* m_hcsdk;
-    int m_i;
-};
-*/

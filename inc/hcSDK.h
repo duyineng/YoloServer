@@ -38,8 +38,6 @@ public:
 	int* m_stat;
 	vector<DevInfo> devInfos;	//设备信息数组
 	vector<NET_DVR_PREVIEWINFO>	previewInfos;	//预览信息数组
-private:
-    NET_DVR_JPEGPARA jpegPara={0xff,2}; //C+11新特性，类内就地初始化,效率最高
 };
 
 struct HC

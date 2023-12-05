@@ -1,14 +1,13 @@
 #include"main.h"
 
-#define DEVNUMS 18
-
-using namespace std;
+#define DEVNUMS 2
 
 extern unsigned int detectRecNums;	//在yolo.cc中定义	
 extern vector<MidDevID> midDevIDs;	//在hcSDK.cpp中定义
 
 pthread_mutex_t mutex1=PTHREAD_MUTEX_INITIALIZER;	//在数据段上定义并初始化互斥锁，程序结束自动释放，无需手动释放
-pthread_mutex_t ImgLocks[DEVNUMS];	//在数据段上定义互斥锁数组，没有初始化
+
+pthread_mutex_t imgLocks[DEVNUMS];	//在数据段上定义互斥锁数组，没有初始化
 
 pthread_mutex_t mutex2=PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond2=PTHREAD_COND_INITIALIZER;
@@ -24,6 +23,7 @@ int thread_status[DEVNUMS]={0};
 int sys_err(const char* str)
 {
 	perror(str);
+
 	exit(1);
 }
 
@@ -104,7 +104,6 @@ void* handler(void* arg)	//服务器处理线程
 
 void* reconnect(void* arg)
 {
-/*
 	hcSDK* hcsdk=static_cast<hcSDK*>(arg);
 
     while(1)
@@ -118,18 +117,17 @@ void* reconnect(void* arg)
                 sleep(1);   //1s后重新登录
 
                 //重新登录
-                NET_DVR_USER_LOGIN_INFO loginInfo{};    //创建登录信息结构体
+                NET_DVR_USER_LOGIN_INFO userLoginInfo{};    
 
-                loginInfo.bUseAsynLogin=0; //同步登录方式
-                strcpy(loginInfo.sDeviceAddress,hcsdk->devInfos[i].devIP.c_str()); //设备IP地址
-                loginInfo.wPort =8000;//stoi(hcsdk->devInfos[i].devPort); //设备端口
-                strcpy(loginInfo.sUserName, hcsdk->devInfos[i].user.c_str()); //设备登录用户名
-                strcpy(loginInfo.sPassword, hcsdk->devInfos[i].password.c_str()); //设备登录密码
+                strcpy(userLoginInfo.sDeviceAddress,hcsdk->devInfos[i].devIP.c_str()); //设备IP
+                userLoginInfo.wPort =8000;//stoi(hcsdk->devInfos[i].devPort); //设备端口
+                strcpy(userLoginInfo.sUserName, hcsdk->devInfos[i].user.c_str()); //登录用户名
+                strcpy(userLoginInfo.sPassword, hcsdk->devInfos[i].password.c_str()); //登录密码
 
                 //设备信息, 输出参数
                 NET_DVR_DEVICEINFO_V40 deviceInfo{};
 
-                hcsdk->devInfos[i].loginRet=NET_DVR_Login_V40(&loginInfo, &deviceInfo);
+                hcsdk->devInfos[i].loginRet=NET_DVR_Login_V40(&userLoginInfo, &deviceInfo);
 				if (hcsdk->devInfos[i].loginRet < 0)
                 {   
                     cout<<hcsdk->devInfos[i].devID<<" device login failed,error code:"<<NET_DVR_GetLastError()<<endl;
@@ -142,7 +140,6 @@ void* reconnect(void* arg)
             }
         }
     }	
-*/
 	return NULL;
 }
 
@@ -176,8 +173,10 @@ void CALLBACK DecCBFun(int nPort, char* pBuf, int nSize, FRAME_INFO* pFrameInfo,
 */
 
 		//放入数组中
+		//pthread_mutex_lock(&imgLocks[portToIndex[nPort]]);
+		std::cout<<"aa11"<<std::endl;
 		imgDevIDs[portToIndex[nPort]].img=bgrImg;
-
+		//pthread_mutex_unlock(&imgLocks[portToIndex[nPort]]);
     }
 }
 
@@ -202,7 +201,7 @@ void CALLBACK g_RealDataCallBack_V30(LONG lRealHandle,DWORD dwDataType,BYTE* pBu
                 return;
             }
 
-            if (!PlayM4_OpenStream(hc->nPort, pBuffer, dwBufSize, 1024 * 1024)) //打开流接口
+            if (!PlayM4_OpenStream(hc->nPort, pBuffer, dwBufSize, 1024*1024)) //打开流接口
             {
                 return;
             }
@@ -231,16 +230,16 @@ void* screenshot(void* arg)
 {
 	HC hc=*(HC*)arg;
 	LONG lRealPlayHandle=NET_DVR_RealPlay_V40(hc.m_hcsdk->devInfos[hc.m_i].loginRet,
-										 &hc.m_hcsdk->previewInfos[hc.m_i],
-										 g_RealDataCallBack_V30,
-										 arg);		
+										 	  &hc.m_hcsdk->previewInfos[hc.m_i],
+										 	  g_RealDataCallBack_V30,
+										 	  arg);		
 	if(lRealPlayHandle<0)
 		std::cout<<"RealPlay_V40 err:"<<NET_DVR_GetLastError()<<std::endl;
 /*
 			//把ImgInfo结构体数组放进模型中
-			pthread_mutex_lock(&ImgLocks[hc.m_i]);
+			pthread_mutex_lock(&imgLocks[hc.m_i]);
 			imgDevIDs[hc.m_i].img=imgDevID.img;
-			pthread_mutex_unlock(&ImgLocks[hc.m_i]);
+			pthread_mutex_unlock(&imgLocks[hc.m_i]);
 			imgDevIDs[hc.m_i].devID=midDevIDs[hc.m_i].devID;
 
 			pthread_mutex_lock(&mutex2);    
@@ -271,20 +270,18 @@ void* screenshot(void* arg)
 
 int main()
 {
-	//初始化DEVNUMS把截图锁
-	for(int i=0;i<DEVNUMS;i++)
+	//初始化DEVNUMS把图像锁
+	for(int i=0; i<DEVNUMS; i++)
 	{
-		int ret=pthread_mutex_init(&ImgLocks[i],NULL);
+		int ret = pthread_mutex_init(&imgLocks[i], NULL);
 		if(ret!=0)	//返回非0，失败
-			sys_err("pthread_mutex_init() ImgLocks err");
+			sys_err("pthread_mutex_init() imgLocks[i] err");
 	}
 
-	cout<<"开始初始化海康SDK环境"<<endl;
 	hcSDK hcsdk("devInfo.json");	//初始化devInfos数组容器，初始化midDevIDs数组容器
 
 	hcsdk.loginDev();	//全部设备登录一遍，如果一台设备都没登录上，会一直重复登录
 
-	cout<<"11"<<endl;
 	const int allDevNums=hcsdk.m_allDevNums;
 
 	imgDevIDs.resize(allDevNums);	//里面的所有元素都会被初始化，Mat为空矩阵，string为空字符串
@@ -303,7 +300,7 @@ int main()
 		hcs[i].m_i=i;		
 	}
 	pthread_t tid[DEVNUMS];
-	for(int i=0;i<DEVNUMS;i++)
+	for(int i=0; i<DEVNUMS; i++)
 	{
 		int ret=pthread_create(&tid[i],NULL,screenshot,&hcs[i]);
 		if(ret==-1)
@@ -331,7 +328,6 @@ int main()
 		cout<<"推理后"<<endl;
 
 	}
-
 
 	return 0;
 }
