@@ -26,7 +26,7 @@ link_directories(/usr/lib)
 
 cuda_add_executable(${PROJECT_NAME} main.cpp ${SRC_LIST} ) 
 
-target_link_libraries(${PROJECT_NAME} pthread PlayCtrl hcnetsdk json mxml ${NVINFER} ${NVINFER_PLUGIN} ${CUDA_LIBRARIES} ${OpenCV_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} pthread AudioRender SuperRender PlayCtrl hcnetsdk json mxml ${NVINFER} ${NVINFER_PLUGIN} ${CUDA_LIBRARIES} ${OpenCV_LIBRARIES})
 
 
 

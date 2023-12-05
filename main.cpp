@@ -104,6 +104,7 @@ void* handler(void* arg)	//服务器处理线程
 
 void* reconnect(void* arg)
 {
+/*
 	hcSDK* hcsdk=static_cast<hcSDK*>(arg);
 
     while(1)
@@ -140,7 +141,9 @@ void* reconnect(void* arg)
             }
         }
     }	
+*/
 	return NULL;
+
 }
 
 //解码回调函数
@@ -173,10 +176,10 @@ void CALLBACK DecCBFun(int nPort, char* pBuf, int nSize, FRAME_INFO* pFrameInfo,
 */
 
 		//放入数组中
-		//pthread_mutex_lock(&imgLocks[portToIndex[nPort]]);
-		std::cout<<"aa11"<<std::endl;
+		pthread_mutex_lock(&imgLocks[portToIndex[nPort]]);
+		std::cout<<"111"<<std::endl;
 		imgDevIDs[portToIndex[nPort]].img=bgrImg;
-		//pthread_mutex_unlock(&imgLocks[portToIndex[nPort]]);
+		pthread_mutex_unlock(&imgLocks[portToIndex[nPort]]);
     }
 }
 
